@@ -32,9 +32,91 @@ static void draw_triangle(const u8vec4& color, const vec3& center, double size) 
 	glEnd();
 }
 
+static void draw_cube( const vec3& center, double size) {
+	
+	glBegin(GL_TRIANGLES);  // draw a cube with 12 triangles
+	float v0[3] = { center.x + 0.3f,center.y + 0.3f,center.z- 0.3f };
+	float v1[3] = { center.x- 0.3f,center.y + 0.3f,center.z- 0.3f };
+	float v2[3] = { center.x - 0.3f,center.y- 0.3f,center.z- 0.3f };
+	float v3[3] = { center.x + 0.3f,center.y - 0.3f,center.z - 0.3f };
+	float v4[3] = { center.x + 0.3f,center.y - 0.3f,center.z+ 0.3f };
+	float v5[3] = { center.x + 0.3f,center.y + 0.3f,center.z+ 0.3f };
+	float v6[3] = { center.x - 0.3f,center.y + 0.3f,center.z+ 0.3f };
+	float v7[3] = { center.x - 0.3f,center.y - 0.3f,center.z+ 0.3f };
+	// front face =================
+	glColor3f(0, 0, 1);
+	glVertex3fv(v0);    // v0-v1-v2
+	glColor3f(0, 0, 1);
+	glVertex3fv(v1);
+	glColor3f(0, 0, 1);
+	glVertex3fv(v2);
+
+	glColor3f(0, 0, 1);
+	glVertex3fv(v2);    // v2-v3-v0
+	glColor3f(0, 0, 1);
+	glVertex3fv(v3);
+	glColor3f(0, 0, 1);
+	glVertex3fv(v0);
+
+	// right face =================
+	glColor3f(1, 0, 0);
+	glVertex3fv(v0);    // v0-v3-v4
+	glVertex3fv(v3);
+	glVertex3fv(v4);
+
+	glVertex3fv(v4);    // v4-v5-v0
+	glVertex3fv(v5);
+	glVertex3fv(v0);
+
+	// top face ===================
+	glColor3f(0, 1, 0);
+	glVertex3fv(v0);    // v0-v5-v6
+	glVertex3fv(v5);
+	glVertex3fv(v6);
+
+	glVertex3fv(v6);    // v6-v1-v0
+	glVertex3fv(v1);
+	glVertex3fv(v0);
+
+	// left face ===================
+	glColor3f(0, 0, 0);
+	glVertex3fv(v1);    
+	glVertex3fv(v6);
+	glVertex3fv(v7);
+
+	glVertex3fv(v1);    // v6-v1-v0
+	glVertex3fv(v7);
+	glVertex3fv(v2);
+
+	// bottom face ===================
+	glColor3f(1, 1, 1);
+	glVertex3fv(v3);   
+	glVertex3fv(v4);
+	glVertex3fv(v7);
+	
+	glVertex3fv(v7);    
+	glVertex3fv(v2);
+	glVertex3fv(v3);
+
+	// back face ===================
+	glColor3f(1, 0, 1);
+	glVertex3fv(v5);
+	glVertex3fv(v7);
+	glVertex3fv(v6);
+
+	glVertex3fv(v5);
+	glVertex3fv(v4);
+	glVertex3fv(v7);
+
+		glEnd();
+}
+
 static void display_func() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	draw_triangle(u8vec4(255, 0, 0, 255), vec3(0.0, 0.0, 0.0), 0.5);
+	//draw_triangle(u8vec4(255, 0, 0, 255), vec3(0.0, 0.0, 0.0), 0.5);
+	draw_cube( vec3(0.0, 0.0, 0.0), 0.5);
+	glRotatef(0.5f, 1.0f, 1.0f, 0.0f);
+
 }
 
 #include "imgui_impl_sdl2.h"
