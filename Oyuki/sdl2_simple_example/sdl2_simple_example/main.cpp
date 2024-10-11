@@ -10,7 +10,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <vector>
-
+#include "imgui_impl_sdl2.h"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using namespace std;
 
@@ -23,11 +25,52 @@ static const ivec2 WINDOW_SIZE(512, 512);
 static const unsigned int FPS = 60;
 static const auto FRAME_DT = 1.0s / FPS;
 
+glm::mat4 projectionMatrix;
+glm::mat4 viewMatrix;
+glm::mat4 modelMatrix;
+
+
+
 static void init_openGL() {
 	glewInit();
 	if (!GLEW_VERSION_3_0) throw exception("OpenGL 3.0 API is not available.");
+
 	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.5, 0.5, 0.5, 1.0);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_NORMALIZE);  // Normaliza las normales automáticamente
+
+	// Configuración de la luz
+	GLfloat light_position[] = { 1.0f, 1.0f, 1.0f, 0.0f };  // Luz direccional
+	GLfloat light_ambient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	GLfloat light_diffuse[] = { 0.7f, 0.7f, 0.7f, 1.0f };
+	GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
+
+	// Configuración del material
+	GLfloat mat_ambient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+	GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLfloat mat_shininess[] = { 50.0f };
+
+	glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+	glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+
+	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);  // Fondo más oscuro para mejor contraste
+
+	projectionMatrix = glm::perspective(glm::radians(45.0f),
+		static_cast<float>(WINDOW_SIZE.x) / WINDOW_SIZE.y, 0.1f, 100.0f);
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+	modelMatrix = glm::mat4(1.0f);
 }
 
 static void draw_triangle(const u8vec4& color, const vec3& center, double size) {
@@ -117,13 +160,48 @@ static void draw_cube( const vec3& center, double size) {
 
 		glEnd();
 }
-struct MeshData {
+
+// Variables globales para las matrices
+
+
+struct MeshData // Estructura para almacenar los datos de un modelo 3D
+{
 	vector<vec3> vertices;
 	vector<vector<unsigned int>> triangles;
+	vector<vec3> colors;
+	vector<vec3> normals;  // Añadido: vector de normales
+	GLuint vao = 0;
+	GLuint vbo = 0;
+	GLuint ebo = 0;
+	GLuint normalVBO = 0;  // Nuevo: Vertex Buffer Object para normales
+	GLuint colorVBO = 0; // Vertex Buffer Object para colores
 };
-static void drawModel(vector<MeshData> data) {
-	glBegin(GL_TRIANGLES); // Asumimos que los vértices están organizados en triángulos
-	for (size_t a = 0; a < data.size(); a++)
+
+static void drawModel(const vector<MeshData>& data) {
+	
+	for (const auto& meshData : data) {
+		glBindVertexArray(meshData.vao);
+
+		// Asegúrate de que el color se cargue desde el VBO de colores
+		glBindBuffer(GL_ARRAY_BUFFER, meshData.colorVBO);
+		glEnableVertexAttribArray(1); // Activar el atributo de color
+
+		size_t offset = 0;
+		for (size_t i = 0; i < meshData.triangles.size(); i++) {
+			const auto& triangle = meshData.triangles[i];
+			if (i % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
+			else if (i % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
+			else if (i % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
+			else if (i % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
+			else if (i % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
+			else if (i % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
+			glDrawElements(GL_TRIANGLES, triangle.size(), GL_UNSIGNED_INT,
+				(void*)(offset * sizeof(unsigned int)));
+			offset += triangle.size();
+		}
+		glBindVertexArray(0);
+	}
+	/*for (size_t a = 0; a < data.size(); a++)
 	{
 		//glPushMatrix();
 		//glTranslatef(a * 1.5f, 0.0f, 0.0f);
@@ -137,67 +215,131 @@ static void drawModel(vector<MeshData> data) {
 			else if (i % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
 
 			glVertex3f(data[a].vertices[data[a].triangles[i][0]].x,
-				data[a].vertices[data[a].triangles[i][0]].y, 
+				data[a].vertices[data[a].triangles[i][0]].y,
 				data[a].vertices[data[a].triangles[i][0]].z);
-			glVertex3f(data[a].vertices[data[a].triangles[i][1]].x, 
+			glVertex3f(data[a].vertices[data[a].triangles[i][1]].x,
 				data[a].vertices[data[a].triangles[i][1]].y,
 				data[a].vertices[data[a].triangles[i][1]].z);
-			glVertex3f(data[a].vertices[data[a].triangles[i][2]].x, 
-				data[a].vertices[data[a].triangles[i][2]].y, 
+			glVertex3f(data[a].vertices[data[a].triangles[i][2]].x,
+				data[a].vertices[data[a].triangles[i][2]].y,
 				data[a].vertices[data[a].triangles[i][2]].z);
 
 		}
 		//glPopMatrix();
 	}
-	
+	*/
+}
 
-	glEnd();
+void LoadToBuffers(MeshData& meshData) 
+{
+	
+	// Cargar colores basados en los triángulos
+	vector<vec3> vertexColors;
+	for (const auto& triangle : meshData.triangles) {
+		vec3 color(rand() / RAND_MAX, rand() / RAND_MAX, rand() / RAND_MAX);  // Generar un color aleatorio
+		for (const auto& index : triangle) {
+			vertexColors.push_back(color);  // Asignar el mismo color a los vértices del triángulo
+		}
+	}
+
+	glGenVertexArrays(1, &meshData.vao);
+	glGenBuffers(1, &meshData.vbo);
+	glGenBuffers(1, &meshData.ebo);
+	glGenBuffers(1, &meshData.normalVBO);
+	glGenBuffers(1, &meshData.colorVBO);
+
+	glBindVertexArray(meshData.vao);
+
+	// Cargar vértices
+	glBindBuffer(GL_ARRAY_BUFFER, meshData.vbo);
+	glBufferData(GL_ARRAY_BUFFER, meshData.vertices.size() * sizeof(vec3),
+		meshData.vertices.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
+
+	// Cargar normales
+	if (!meshData.normals.empty()) {
+		glBindBuffer(GL_ARRAY_BUFFER, meshData.normalVBO);
+		glBufferData(GL_ARRAY_BUFFER, meshData.normals.size() * sizeof(vec3),
+			meshData.normals.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
+	}
+
+	// Cargar colores
+	glBindBuffer(GL_ARRAY_BUFFER, meshData.colorVBO);
+	glBufferData(GL_ARRAY_BUFFER, vertexColors.size() * sizeof(vec3),
+		vertexColors.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(1); // Habilitar el atributo de color
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), (void*)0);
+
+	// Cargar índices
+	vector<unsigned int> allIndices;
+	for (const auto& triangle : meshData.triangles) {
+		allIndices.insert(allIndices.end(), triangle.begin(), triangle.end());
+	}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshData.ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, allIndices.size() * sizeof(unsigned int),
+		allIndices.data(), GL_STATIC_DRAW);
+
+	glBindVertexArray(0);
+}
+
+void cleanupMeshData(MeshData& meshData) {
+	glDeleteBuffers(1, &meshData.vbo);
+	glDeleteBuffers(1, &meshData.ebo);
+	glDeleteBuffers(1, &meshData.colorVBO);  // Nuevo: eliminar VBO de colores
+	glDeleteVertexArrays(1, &meshData.vao);
 }
 
 vector<MeshData> CubitoFbx()
 {
-	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
-	const struct aiScene* scene = aiImportFile(file, aiProcess_Triangulate);
-	const float scaleFactor = 0.004f;
+	const char* file = "C:/Users/usuari/Downloads/masterchief.fbx"; // Ruta del fitxer a carregar
+	const struct aiScene* scene = aiImportFile(file,
+		aiProcess_Triangulate | aiProcess_GenNormals);
+	const float scaleFactor = 0.1f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
 	}
-	vector<vec3> vertices;                  // Vértices
-	vector<vector<unsigned int>> triangles; // Índices de triángulos
-	printf("Numero de malles: %u\n", scene->mNumMeshes);
 
-	
 	vector<MeshData> MayaTotal;
-	unsigned int vertexOffset = 0;
 
-	for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+	for (unsigned int i = 0; i < scene->mNumMeshes; i++) 
+	{
 		aiMesh* mesh = scene->mMeshes[i];
 		MeshData meshData;
-		printf("\nMalla %u:\n", i);
-		printf(" Numero de vertexs: %u\n", mesh->mNumVertices);
-		printf(" Numero de triangles: %u\n", mesh->mNumFaces);
+
 		// Vèrtexs
 		for (unsigned int v = 0; v < mesh->mNumVertices; v++) {
 			aiVector3D vertex = mesh->mVertices[v];
-			printf(" Vertex %u: (%f, %f, %f)\n", v, vertex.x* scaleFactor, vertex.y*scaleFactor, vertex.z* scaleFactor);
-			meshData.vertices.push_back({ vertex.x * scaleFactor, vertex.y * scaleFactor, vertex.z * scaleFactor });
+			meshData.vertices.push_back(vec3(
+				vertex.x * scaleFactor,
+				vertex.y * scaleFactor,
+				vertex.z * scaleFactor));
+			if (mesh->HasNormals()) {
+				aiVector3D normal = mesh->mNormals[v];
+				meshData.normals.push_back(vec3(normal.x, normal.y, normal.z));
+			}
 		}
 		// Índexs de triangles (3 per triangle)
-		for (unsigned int f = 0; f < mesh->mNumFaces; f++) {
-
+		for (unsigned int f = 0; f < mesh->mNumFaces; f++) 
+		{
 			aiFace face = mesh->mFaces[f];
+			if (face.mNumIndices != 3) {
+				printf("Advertencia: Face %u no es un triángulo (tiene %u índices)\n",
+					f, face.mNumIndices);
+				continue;
+			}
 			vector<unsigned int> indices;
-			printf(" Indexs triangle %u: ", f);
-
 			for (unsigned int j = 0; j < face.mNumIndices; j++) {
-				indices.push_back(face.mIndices[j] );
-				printf("%u ", face.mIndices[j]);
+				indices.push_back(face.mIndices[j]);
 			}
 			meshData.triangles.push_back(indices);
-			printf("\n");
 		}
-		MayaTotal.push_back(meshData);
+
+		LoadToBuffers(meshData);
+		MayaTotal.push_back(move(meshData));
 	}
 	aiReleaseImport(scene);
 	return MayaTotal;
@@ -208,63 +350,37 @@ float rotationX = 0.0f;  // Rotación alrededor del eje X
 float rotationY = 0.0f;  // Rotación alrededor del eje Y
 bool isDragging = false;  // Indica si el mouse está siendo arrastrado
 int lastMouseX, lastMouseY; // Última posición del mouse
-static bool Events() {
-	SDL_Event event;
-	while (SDL_PollEvent(&event)) {
-		switch (event.type) {
-		case SDL_QUIT:
-			return false;
-			break;
-		case SDL_MOUSEBUTTONDOWN:
-			if (event.button.button == SDL_BUTTON_LEFT) {
-				isDragging = true; // Iniciar el arrastre
-				SDL_GetMouseState(&lastMouseX, &lastMouseY); // Guardar la posición actual del mouse
-			}
-			break;
-		case SDL_MOUSEBUTTONUP:
-			if (event.button.button == SDL_BUTTON_LEFT) {
-				isDragging = false; // Terminar el arrastre
-			}
-			break;
-		case SDL_MOUSEMOTION:
-			if (isDragging) {
-				int mouseX, mouseY;
-				SDL_GetMouseState(&mouseX, &mouseY); // Obtener la posición actual del mouse
-
-				// Calcular el movimiento del mouse
-				int deltaX = mouseX - lastMouseX;
-				int deltaY = mouseY - lastMouseY;
-
-				// Actualizar ángulos de rotación
-				rotationY += deltaX * 0.5f; // Aumentar rotación alrededor del eje Y
-				rotationX += deltaY * 0.5f; // Aumentar rotación alrededor del eje X
-
-				// Actualizar la última posición del mouse
-				lastMouseX = mouseX;
-				lastMouseY = mouseY;
-			}
-			break;
-		default:
-			//ImGui_ImplSDL2_ProcessEvent(&event);
-			break;
-		}
-	}
-	return true;
-}
+float zoomLevel = -5.0f;
 
 static void display_func() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//draw_triangle(u8vec4(255, 0, 0, 255), vec3(0.0, 0.0, 0.0), 0.5);
-	//draw_cube( vec3(0.0, 0.0, 0.0), 0.5);
-	Events();
-	drawModel(dato);
-	glRotatef(rotationX, 1.0f, 0.0f, 0.0f); // Rotar alrededor del eje X
-	glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
-	//glRotatef(0.5f, 0.0f, 0.0f, 1.0f);
 
+	GLfloat light_position[] = {
+		static_cast<GLfloat>(sin(glm::radians(rotationY)) * 5),
+		2.0f,
+		static_cast<GLfloat>(cos(glm::radians(rotationY)) * 5),
+		0.0f
+	};
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+	// Actualizar la matriz de vista con el zoom
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, zoomLevel));
+
+	modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(glm::value_ptr(projectionMatrix));
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(glm::value_ptr(viewMatrix * modelMatrix));
+
+	drawModel(dato);
 }
 
-#include "imgui_impl_sdl2.h"
+
 
 static bool processEvents() {
 	SDL_Event event;
@@ -272,22 +388,49 @@ static bool processEvents() {
 		switch (event.type) {
 		case SDL_QUIT:
 			return false;
+		case SDL_MOUSEBUTTONDOWN:
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				isDragging = true;
+				SDL_GetMouseState(&lastMouseX, &lastMouseY);
+			}
+			break;
+		case SDL_MOUSEBUTTONUP:
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				isDragging = false;
+			}
+			break;
+		case SDL_MOUSEWHEEL:
+			// Ajustar el zoom basado en el movimiento de la rueda
+			zoomLevel += event.wheel.y * 0.5f;
+			// Limitar el zoom para evitar que se acerque o aleje demasiado
+			zoomLevel = glm::clamp(zoomLevel, -20.0f, -1.0f);
+			break;
+		case SDL_MOUSEMOTION:
+			if (isDragging) {
+				int mouseX, mouseY;
+				SDL_GetMouseState(&mouseX, &mouseY);
+				int deltaX = mouseX - lastMouseX;
+				int deltaY = mouseY - lastMouseY;
+				rotationY += deltaX * 0.5f;
+				rotationX += deltaY * 0.5f;
+				lastMouseX = mouseX;
+				lastMouseY = mouseY;
+			}
 			break;
 		default:
 			ImGui_ImplSDL2_ProcessEvent(&event);
 			break;
 		}
-
 	}
 	return true;
 }
 
 int main(int argc, char** argv) {
 	MyWindow window("SDL2 Simple Example", WINDOW_SIZE.x, WINDOW_SIZE.y);
-	
-	dato = CubitoFbx(); // Cargar los vértices solo una vez
-
 	init_openGL();
+	srand(static_cast<unsigned int>(time(nullptr)));
+
+	dato = CubitoFbx(); // Cargar los vértices solo una vez
 	while (processEvents()) {
 		const auto t0 = hrclock::now();
 		display_func();
@@ -296,6 +439,9 @@ int main(int argc, char** argv) {
 		const auto t1 = hrclock::now();
 		const auto dt = t1 - t0;
 		if(dt<FRAME_DT) this_thread::sleep_for(FRAME_DT - dt);
+	}
+	for (auto& mesh : dato) {
+		cleanupMeshData(mesh);
 	}
 
 	return 0;
