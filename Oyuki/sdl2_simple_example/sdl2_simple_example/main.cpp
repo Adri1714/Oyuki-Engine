@@ -52,7 +52,7 @@ static void init_openGL() {
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
 
-	// Configuración del material
+	/*// Configuración del material
 	GLfloat mat_ambient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
 	GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f };
 	GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -63,7 +63,7 @@ static void init_openGL() {
 	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
 	glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
 
-	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);*/
 
 	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);  // Fondo más oscuro para mejor contraste
 
@@ -82,99 +82,17 @@ static void draw_triangle(const u8vec4& color, const vec3& center, double size) 
 	glEnd();
 }
 
-static void draw_cube( const vec3& center, double size) {
-	
-	glBegin(GL_TRIANGLES);  // draw a cube with 12 triangles
-	float v0[3] = { center.x + 0.3f,center.y + 0.3f,center.z- 0.3f };
-	float v1[3] = { center.x- 0.3f,center.y + 0.3f,center.z- 0.3f };
-	float v2[3] = { center.x - 0.3f,center.y- 0.3f,center.z- 0.3f };
-	float v3[3] = { center.x + 0.3f,center.y - 0.3f,center.z - 0.3f };
-	float v4[3] = { center.x + 0.3f,center.y - 0.3f,center.z+ 0.3f };
-	float v5[3] = { center.x + 0.3f,center.y + 0.3f,center.z+ 0.3f };
-	float v6[3] = { center.x - 0.3f,center.y + 0.3f,center.z+ 0.3f };
-	float v7[3] = { center.x - 0.3f,center.y - 0.3f,center.z+ 0.3f };
-	// front face =================
-	glColor3f(0, 0, 1);
-	glVertex3fv(v0);    // v0-v1-v2
-	glColor3f(0, 0, 1);
-	glVertex3fv(v1);
-	glColor3f(0, 0, 1);
-	glVertex3fv(v2);
-
-	glColor3f(0, 0, 1);
-	glVertex3fv(v2);    // v2-v3-v0
-	glColor3f(0, 0, 1);
-	glVertex3fv(v3);
-	glColor3f(0, 0, 1);
-	glVertex3fv(v0);
-
-	// right face =================
-	glColor3f(1, 0, 0);
-	glVertex3fv(v0);    // v0-v3-v4
-	glVertex3fv(v3);
-	glVertex3fv(v4);
-
-	glVertex3fv(v4);    // v4-v5-v0
-	glVertex3fv(v5);
-	glVertex3fv(v0);
-
-	// top face ===================
-	glColor3f(0, 1, 0);
-	glVertex3fv(v0);    // v0-v5-v6
-	glVertex3fv(v5);
-	glVertex3fv(v6);
-
-	glVertex3fv(v6);    // v6-v1-v0
-	glVertex3fv(v1);
-	glVertex3fv(v0);
-
-	// left face ===================
-	glColor3f(0, 0, 0);
-	glVertex3fv(v1);    
-	glVertex3fv(v6);
-	glVertex3fv(v7);
-
-	glVertex3fv(v1);    // v6-v1-v0
-	glVertex3fv(v7);
-	glVertex3fv(v2);
-
-	// bottom face ===================
-	glColor3f(1, 1, 1);
-	glVertex3fv(v3);   
-	glVertex3fv(v4);
-	glVertex3fv(v7);
-	
-	glVertex3fv(v7);    
-	glVertex3fv(v2);
-	glVertex3fv(v3);
-
-	// back face ===================
-	glColor3f(1, 0, 1);
-	glVertex3fv(v5);
-	glVertex3fv(v7);
-	glVertex3fv(v6);
-
-	glVertex3fv(v5);
-	glVertex3fv(v4);
-	glVertex3fv(v7);
-
-		glEnd();
-}
-
-// Variables globales para las matrices
-
-
 struct MeshData // Estructura para almacenar los datos de un modelo 3D
 {
 	vector<vec3> vertices;
 	vector<vector<unsigned int>> triangles;
 	vector<vec3> colors;
-	vector<vec3> normals;  // Añadido: vector de normales
+	vector<vec3> normals; 
 	GLuint vao = 0;
 	GLuint vbo = 0;
 	GLuint ebo = 0;
-	GLuint normalVBO = 0;  // Nuevo: Vertex Buffer Object para normales
-	GLuint colorVBO = 0; // Vertex Buffer Object para colores
+	GLuint normalVBO = 0;
+	GLuint colorVBO = 0;
 };
 
 static void drawModel(const vector<MeshData>& data) {
@@ -189,12 +107,12 @@ static void drawModel(const vector<MeshData>& data) {
 		size_t offset = 0;
 		for (size_t i = 0; i < meshData.triangles.size(); i++) {
 			const auto& triangle = meshData.triangles[i];
-			if (i % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
-			else if (i % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
-			else if (i % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
-			else if (i % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
-			else if (i % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
-			else if (i % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
+			if (i % 6 == 0) glColor3f(0.6f, 0.6f, 0.6f); // Rojo
+			else if (i % 6 == 1) glColor3f(0.3f, 0.3f, 0.3f); // Verde
+			else if (i % 6 == 2) glColor3f(0.5f, 0.5f, 0.5f); // Azul
+			else if (i % 6 == 3) glColor3f(0.1f, 0.1f, 0.1f); // Amarillo
+			else if (i % 6 == 4) glColor3f(0.4f, 0.4f, 0.4f); // Magenta
+			else if (i % 6 == 5) glColor3f(0.2f, 0.2f, 0.2f); // Cian
 			glDrawElements(GL_TRIANGLES, triangle.size(), GL_UNSIGNED_INT,
 				(void*)(offset * sizeof(unsigned int)));
 			offset += triangle.size();
@@ -232,21 +150,10 @@ static void drawModel(const vector<MeshData>& data) {
 
 void LoadToBuffers(MeshData& meshData) 
 {
-	
-	// Cargar colores basados en los triángulos
-	vector<vec3> vertexColors;
-	for (const auto& triangle : meshData.triangles) {
-		vec3 color(rand() / RAND_MAX, rand() / RAND_MAX, rand() / RAND_MAX);  // Generar un color aleatorio
-		for (const auto& index : triangle) {
-			vertexColors.push_back(color);  // Asignar el mismo color a los vértices del triángulo
-		}
-	}
-
 	glGenVertexArrays(1, &meshData.vao);
 	glGenBuffers(1, &meshData.vbo);
 	glGenBuffers(1, &meshData.ebo);
 	glGenBuffers(1, &meshData.normalVBO);
-	glGenBuffers(1, &meshData.colorVBO);
 
 	glBindVertexArray(meshData.vao);
 
@@ -265,13 +172,6 @@ void LoadToBuffers(MeshData& meshData)
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
 	}
-
-	// Cargar colores
-	glBindBuffer(GL_ARRAY_BUFFER, meshData.colorVBO);
-	glBufferData(GL_ARRAY_BUFFER, vertexColors.size() * sizeof(vec3),
-		vertexColors.data(), GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1); // Habilitar el atributo de color
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), (void*)0);
 
 	// Cargar índices
 	vector<unsigned int> allIndices;
@@ -389,13 +289,13 @@ static bool processEvents() {
 		case SDL_QUIT:
 			return false;
 		case SDL_MOUSEBUTTONDOWN:
-			if (event.button.button == SDL_BUTTON_LEFT) {
+			if (event.button.button == SDL_BUTTON_RIGHT) {
 				isDragging = true;
 				SDL_GetMouseState(&lastMouseX, &lastMouseY);
 			}
 			break;
 		case SDL_MOUSEBUTTONUP:
-			if (event.button.button == SDL_BUTTON_LEFT) {
+			if (event.button.button == SDL_BUTTON_RIGHT) {
 				isDragging = false;
 			}
 			break;
@@ -435,7 +335,6 @@ int main(int argc, char** argv) {
 		const auto t0 = hrclock::now();
 		display_func();
 		window.draw();
-		//window.swapBuffers();
 		const auto t1 = hrclock::now();
 		const auto dt = t1 - t0;
 		if(dt<FRAME_DT) this_thread::sleep_for(FRAME_DT - dt);
