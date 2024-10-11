@@ -122,29 +122,32 @@ struct MeshData {
 	vector<vector<unsigned int>> triangles;
 };
 static void drawModel(vector<MeshData> data) {
-	// Verificar que el número de vértices es un múltiplo de 3
-	//if (vertices.size() % 3 != 0) {
-		//fprintf(stderr, "Error: El número de vértices no es un múltiplo de 3.\n");
-		//return; // Salir de la función si no se cumplen las condiciones
-	//}
-
 	glBegin(GL_TRIANGLES); // Asumimos que los vértices están organizados en triángulos
 	for (size_t a = 0; a < data.size(); a++)
 	{
+		//glPushMatrix();
+		//glTranslatef(a * 1.5f, 0.0f, 0.0f);
 		for (size_t i = 0; i < data[a].triangles.size(); i++) {
 			// Establecer color para cada triángulo
-			if (i / 3 % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
-			else if (i / 3 % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
-			else if (i / 3 % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
-			else if (i / 3 % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
-			else if (i / 3 % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
-			else if (i / 3 % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
+			if (i % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
+			else if (i % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
+			else if (i % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
+			else if (i % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
+			else if (i % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
+			else if (i % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
 
-			glVertex3f((data[a].vertices[data[a].triangles[i][0]].x), (data[a].vertices[data[a].triangles[i][0]].y), (data[a].vertices[data[a].triangles[i][0]].z));
-			glVertex3f((data[a].vertices[data[a].triangles[i][1]].x), (data[a].vertices[data[a].triangles[i][1]].y), (data[a].vertices[data[a].triangles[i][1]].z));
-			glVertex3f((data[a].vertices[data[a].triangles[i][2]].x), (data[a].vertices[data[a].triangles[i][2]].y), (data[a].vertices[data[a].triangles[i][2]].z));
+			glVertex3f(data[a].vertices[data[a].triangles[i][0]].x,
+				data[a].vertices[data[a].triangles[i][0]].y, 
+				data[a].vertices[data[a].triangles[i][0]].z);
+			glVertex3f(data[a].vertices[data[a].triangles[i][1]].x, 
+				data[a].vertices[data[a].triangles[i][1]].y,
+				data[a].vertices[data[a].triangles[i][1]].z);
+			glVertex3f(data[a].vertices[data[a].triangles[i][2]].x, 
+				data[a].vertices[data[a].triangles[i][2]].y, 
+				data[a].vertices[data[a].triangles[i][2]].z);
 
 		}
+		//glPopMatrix();
 	}
 	
 
@@ -155,7 +158,7 @@ vector<MeshData> CubitoFbx()
 {
 	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file, aiProcess_Triangulate);
-	const float scaleFactor = 0.5f;
+	const float scaleFactor = 0.004f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
@@ -201,12 +204,63 @@ vector<MeshData> CubitoFbx()
 
 }
 vector<MeshData> dato;
+float rotationX = 0.0f;  // Rotación alrededor del eje X
+float rotationY = 0.0f;  // Rotación alrededor del eje Y
+bool isDragging = false;  // Indica si el mouse está siendo arrastrado
+int lastMouseX, lastMouseY; // Última posición del mouse
+static bool Events() {
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type) {
+		case SDL_QUIT:
+			return false;
+			break;
+		case SDL_MOUSEBUTTONDOWN:
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				isDragging = true; // Iniciar el arrastre
+				SDL_GetMouseState(&lastMouseX, &lastMouseY); // Guardar la posición actual del mouse
+			}
+			break;
+		case SDL_MOUSEBUTTONUP:
+			if (event.button.button == SDL_BUTTON_LEFT) {
+				isDragging = false; // Terminar el arrastre
+			}
+			break;
+		case SDL_MOUSEMOTION:
+			if (isDragging) {
+				int mouseX, mouseY;
+				SDL_GetMouseState(&mouseX, &mouseY); // Obtener la posición actual del mouse
+
+				// Calcular el movimiento del mouse
+				int deltaX = mouseX - lastMouseX;
+				int deltaY = mouseY - lastMouseY;
+
+				// Actualizar ángulos de rotación
+				rotationY += deltaX * 0.5f; // Aumentar rotación alrededor del eje Y
+				rotationX += deltaY * 0.5f; // Aumentar rotación alrededor del eje X
+
+				// Actualizar la última posición del mouse
+				lastMouseX = mouseX;
+				lastMouseY = mouseY;
+			}
+			break;
+		default:
+			//ImGui_ImplSDL2_ProcessEvent(&event);
+			break;
+		}
+	}
+	return true;
+}
+
 static void display_func() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//draw_triangle(u8vec4(255, 0, 0, 255), vec3(0.0, 0.0, 0.0), 0.5);
 	//draw_cube( vec3(0.0, 0.0, 0.0), 0.5);
+	Events();
 	drawModel(dato);
-	glRotatef(0.5f, 0.0f, 1.0f, 0.0f);
+	glRotatef(rotationX, 1.0f, 0.0f, 0.0f); // Rotar alrededor del eje X
+	glRotatef(rotationY, 0.0f, 1.0f, 0.0f);
+	//glRotatef(0.5f, 0.0f, 0.0f, 1.0f);
 
 }
 
