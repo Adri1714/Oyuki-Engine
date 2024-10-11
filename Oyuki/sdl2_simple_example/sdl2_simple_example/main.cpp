@@ -117,8 +117,11 @@ static void draw_cube( const vec3& center, double size) {
 
 		glEnd();
 }
-
-static void drawModel(const std::vector<vec3>& vertices) {
+struct MeshData {
+	vector<vec3> vertices;
+	vector<vector<unsigned int>> triangles;
+};
+static void drawModel(vector<MeshData> data) {
 	// Verificar que el número de vértices es un múltiplo de 3
 	//if (vertices.size() % 3 != 0) {
 		//fprintf(stderr, "Error: El número de vértices no es un múltiplo de 3.\n");
@@ -126,46 +129,48 @@ static void drawModel(const std::vector<vec3>& vertices) {
 	//}
 
 	glBegin(GL_TRIANGLES); // Asumimos que los vértices están organizados en triángulos
-	int n = 1;
-	for (size_t i = 0; i < vertices.size(); i += 4) {
-		// Establecer color para cada triángulo
-		if (i / 3 % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
-		else if (i / 3 % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
-		else if (i / 3 % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
-		else if (i / 3 % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
-		else if (i / 3 % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
-		else if (i / 3 % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
-		n = 1;
-		// Comprobación de índice antes de acceder
-		if (i + 2 < vertices.size()) {
-			for (int a = 1; a <= 2; a++)
-			{
-				glVertex3f(vertices[i].x, vertices[i].y, vertices[i].z);
-				glVertex3f(vertices[i + a].x, vertices[i + a].y, vertices[i + a].z);
-				glVertex3f(vertices[i + a + 1].x, vertices[i + a + 1].y, vertices[i + a + 1].z);
-			}
+	for (size_t a = 0; a < data.size(); a++)
+	{
+		for (size_t i = 0; i < data[a].triangles.size(); i++) {
+			// Establecer color para cada triángulo
+			if (i / 3 % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
+			else if (i / 3 % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
+			else if (i / 3 % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
+			else if (i / 3 % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
+			else if (i / 3 % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
+			else if (i / 3 % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
+
+			glVertex3f((data[a].vertices[data[a].triangles[i][0]].x), (data[a].vertices[data[a].triangles[i][0]].y), (data[a].vertices[data[a].triangles[i][0]].z));
+			glVertex3f((data[a].vertices[data[a].triangles[i][1]].x), (data[a].vertices[data[a].triangles[i][1]].y), (data[a].vertices[data[a].triangles[i][1]].z));
+			glVertex3f((data[a].vertices[data[a].triangles[i][2]].x), (data[a].vertices[data[a].triangles[i][2]].y), (data[a].vertices[data[a].triangles[i][2]].z));
+
 		}
-		
 	}
+	
 
 	glEnd();
 }
 
-std::vector<vec3> CubitoFbx()
+vector<MeshData> CubitoFbx()
 {
-	const char* file = "C:/Users/adriarj/Downloads/cubito.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file, aiProcess_Triangulate);
 	const float scaleFactor = 0.5f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
 	}
+	vector<vec3> vertices;                  // Vértices
+	vector<vector<unsigned int>> triangles; // Índices de triángulos
 	printf("Numero de malles: %u\n", scene->mNumMeshes);
+
+	
+	vector<MeshData> MayaTotal;
+	unsigned int vertexOffset = 0;
+
 	for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
 		aiMesh* mesh = scene->mMeshes[i];
-
-		vector<vec3> arrayVertices(mesh->mNumVertices);
-
+		MeshData meshData;
 		printf("\nMalla %u:\n", i);
 		printf(" Numero de vertexs: %u\n", mesh->mNumVertices);
 		printf(" Numero de triangles: %u\n", mesh->mNumFaces);
@@ -173,33 +178,35 @@ std::vector<vec3> CubitoFbx()
 		for (unsigned int v = 0; v < mesh->mNumVertices; v++) {
 			aiVector3D vertex = mesh->mVertices[v];
 			printf(" Vertex %u: (%f, %f, %f)\n", v, vertex.x* scaleFactor, vertex.y*scaleFactor, vertex.z* scaleFactor);
-			arrayVertices[v] = {vertex.x * scaleFactor, vertex.y * scaleFactor, vertex.z * scaleFactor };
+			meshData.vertices.push_back({ vertex.x * scaleFactor, vertex.y * scaleFactor, vertex.z * scaleFactor });
 		}
 		// Índexs de triangles (3 per triangle)
 		for (unsigned int f = 0; f < mesh->mNumFaces; f++) {
 
 			aiFace face = mesh->mFaces[f];
+			vector<unsigned int> indices;
 			printf(" Indexs triangle %u: ", f);
 
 			for (unsigned int j = 0; j < face.mNumIndices; j++) {
+				indices.push_back(face.mIndices[j] );
 				printf("%u ", face.mIndices[j]);
 			}
-
+			meshData.triangles.push_back(indices);
 			printf("\n");
 		}
-		return arrayVertices;
+		MayaTotal.push_back(meshData);
 	}
 	aiReleaseImport(scene);
+	return MayaTotal;
 
 }
-std::vector<vec3> globalVertices;
+vector<MeshData> dato;
 static void display_func() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//draw_triangle(u8vec4(255, 0, 0, 255), vec3(0.0, 0.0, 0.0), 0.5);
 	//draw_cube( vec3(0.0, 0.0, 0.0), 0.5);
-	drawModel(globalVertices);
-	glRotatef(0.5f, 1.0f, 1.0f, 0.0f);
-	
+	drawModel(dato);
+	glRotatef(0.5f, 0.0f, 1.0f, 0.0f);
 
 }
 
@@ -224,12 +231,9 @@ static bool processEvents() {
 int main(int argc, char** argv) {
 	MyWindow window("SDL2 Simple Example", WINDOW_SIZE.x, WINDOW_SIZE.y);
 	
-	globalVertices = CubitoFbx(); // Cargar los vértices solo una vez
-	if (globalVertices.empty()) {
-		fprintf(stderr, "No se pudieron cargar los vértices.\n");
-	}
+	dato = CubitoFbx(); // Cargar los vértices solo una vez
+
 	init_openGL();
-	CubitoFbx();
 	while (processEvents()) {
 		const auto t0 = hrclock::now();
 		display_func();
