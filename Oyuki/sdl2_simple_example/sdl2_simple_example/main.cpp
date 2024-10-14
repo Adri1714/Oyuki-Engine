@@ -194,10 +194,10 @@ void cleanupMeshData(MeshData& meshData) {
 
 vector<MeshData> CubitoFbx()
 {
-	const char* file = "C:/Users/usuari/Downloads/masterchief.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/adriarj/Downloads/mono.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
 		aiProcess_Triangulate | aiProcess_GenNormals);
-	const float scaleFactor = 0.1f;
+	const float scaleFactor = 0.5f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
@@ -249,27 +249,23 @@ vector<MeshData> dato;
 float rotationX = 0.0f;  // Rotación alrededor del eje X
 float rotationY = 0.0f;  // Rotación alrededor del eje Y
 bool isDragging = false;  // Indica si el mouse está siendo arrastrado
+bool isScrolling = false;
 int lastMouseX, lastMouseY; // Última posición del mouse
 float zoomLevel = -5.0f;
+int deltaY = 0;
 
 static void display_func() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	GLfloat light_position[] = {
-		static_cast<GLfloat>(sin(glm::radians(rotationY)) * 5),
-		2.0f,
-		static_cast<GLfloat>(cos(glm::radians(rotationY)) * 5),
-		0.0f
-	};
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 	// Actualizar la matriz de vista con el zoom
-	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, zoomLevel));
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -rotationY, zoomLevel));
 
 	modelMatrix = glm::mat4(1.0f);
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+	//viewMatrix = glm::translate(viewMatrix, glm::vec3(0.0f, -rotationY * 0.01f, 0.0f));
 
-	glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+	//glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(glm::value_ptr(projectionMatrix));
@@ -285,6 +281,7 @@ static void display_func() {
 static bool processEvents() {
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
+		ImGui_ImplSDL2_ProcessEvent(&event);
 		switch (event.type) {
 		case SDL_QUIT:
 			return false;
@@ -293,10 +290,17 @@ static bool processEvents() {
 				isDragging = true;
 				SDL_GetMouseState(&lastMouseX, &lastMouseY);
 			}
+			if (event.button.button == SDL_BUTTON_LEFT && (SDL_GetModState() & KMOD_ALT))
+			{
+				isDragging = true;
+				isScrolling = true;
+				SDL_GetMouseState(&lastMouseX, &lastMouseY);
+			}
 			break;
 		case SDL_MOUSEBUTTONUP:
-			if (event.button.button == SDL_BUTTON_RIGHT) {
+			if (event.button.button == SDL_BUTTON_RIGHT || event.button.button == SDL_BUTTON_LEFT) {
 				isDragging = false;
+				isScrolling = false;
 			}
 			break;
 		case SDL_MOUSEWHEEL:
@@ -315,10 +319,13 @@ static bool processEvents() {
 				rotationX += deltaY * 0.5f;
 				lastMouseX = mouseX;
 				lastMouseY = mouseY;
+				if (isScrolling)
+				{
+					deltaY = mouseY - lastMouseY; 
+					lastMouseY = mouseY;
+				}
 			}
-			break;
-		default:
-			ImGui_ImplSDL2_ProcessEvent(&event);
+
 			break;
 		}
 	}
