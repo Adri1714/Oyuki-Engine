@@ -36,7 +36,7 @@ static void init_openGL() {
 	if (!GLEW_VERSION_3_0) throw exception("OpenGL 3.0 API is not available.");
 
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_LIGHTING);
+	/*glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_COLOR_MATERIAL);
 	glEnable(GL_NORMALIZE);  // Normaliza las normales automáticamente
@@ -50,7 +50,7 @@ static void init_openGL() {
 	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);*/
 
 	/*// Configuración del material
 	GLfloat mat_ambient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -71,15 +71,6 @@ static void init_openGL() {
 		static_cast<float>(WINDOW_SIZE.x) / WINDOW_SIZE.y, 0.1f, 100.0f);
 	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
 	modelMatrix = glm::mat4(1.0f);
-}
-
-static void draw_triangle(const u8vec4& color, const vec3& center, double size) {
-	glColor4ub(color.r, color.g, color.b, color.a);
-	glBegin(GL_TRIANGLES);
-	glVertex3d(center.x, center.y + size, center.z);
-	glVertex3d(center.x - size, center.y - size, center.z);
-	glVertex3d(center.x + size, center.y - size, center.z);
-	glEnd();
 }
 
 struct MeshData // Estructura para almacenar los datos de un modelo 3D
@@ -167,10 +158,9 @@ void LoadToBuffers(MeshData& meshData)
 	// Cargar normales
 	if (!meshData.normals.empty()) {
 		glBindBuffer(GL_ARRAY_BUFFER, meshData.normalVBO);
-		glBufferData(GL_ARRAY_BUFFER, meshData.normals.size() * sizeof(vec3),
-			meshData.normals.data(), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
+		glBufferData(GL_ARRAY_BUFFER, meshData.normals.size() * sizeof(vec3), meshData.normals.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(1); // Asegúrate de usar el índice correcto
+		glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
 	}
 
 	// Cargar índices
@@ -179,7 +169,7 @@ void LoadToBuffers(MeshData& meshData)
 		allIndices.insert(allIndices.end(), triangle.begin(), triangle.end());
 	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshData.ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, allIndices.size() * sizeof(unsigned int),
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, meshData.triangles.size() * sizeof(unsigned int) * 3,
 		allIndices.data(), GL_STATIC_DRAW);
 
 	glBindVertexArray(0);
@@ -192,7 +182,7 @@ void cleanupMeshData(MeshData& meshData) {
 	glDeleteVertexArrays(1, &meshData.vao);
 }
 
-vector<MeshData> CubitoFbx()
+vector<MeshData> LoadFBX()
 {
 	const char* file = "C:/Users/adriarj/Downloads/mono.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
@@ -245,6 +235,29 @@ vector<MeshData> CubitoFbx()
 	return MayaTotal;
 
 }
+void drawGrid(float size = 10.0f, int divisions = 10) {
+	float step = size / divisions;
+	float half = size / 2.0f;
+
+	glBegin(GL_LINES);
+	glColor3f(0.6f, 0.6f, 0.6f); // Color gris para la cuadrícula
+
+	// Líneas paralelas al eje X
+	for (int i = 0; i <= divisions; ++i) {
+		float position = -half + i * step;
+		glVertex3f(position, 0.0f, -half); // Línea desde (x, 0, -half)
+		glVertex3f(position, 0.0f, half);  // hasta (x, 0, half)
+	}
+
+	// Líneas paralelas al eje Z
+	for (int i = 0; i <= divisions; ++i) {
+		float position = -half + i * step;
+		glVertex3f(-half, 0.0f, position); // Línea desde (-half, 0, z)
+		glVertex3f(half, 0.0f, position);  // hasta (half, 0, z)
+	}
+
+	glEnd();
+}
 vector<MeshData> dato;
 float rotationX = 0.0f;  // Rotación alrededor del eje X
 float rotationY = 0.0f;  // Rotación alrededor del eje Y
@@ -252,54 +265,62 @@ bool isDragging = false;  // Indica si el mouse está siendo arrastrado
 bool isScrolling = false;
 int lastMouseX, lastMouseY; // Última posición del mouse
 float zoomLevel = -5.0f;
-int deltaY = 0;
+float cameraOffsetY;
+float cameraOffsetX;
 
-static void display_func() {
+static void display_func() //funcion que se llama en el main, seria como un Update
+{
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Actualizar la matriz de vista con el zoom
-	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -rotationY, zoomLevel));
+	// Actualizar la matriz de vista: zoom (eje Z) y desplazamiento en el eje Y (para mover la cámara arriba/abajo)	
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(cameraOffsetX * 0.1f, -cameraOffsetY * 0.1f, zoomLevel));
+	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0));
 
-	modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f));
-	//viewMatrix = glm::translate(viewMatrix, glm::vec3(0.0f, -rotationY * 0.01f, 0.0f));
+	drawGrid();
+	// Crear la matriz de modelo: rotación del objeto en los ejes X e Y
+	//modelMatrix = glm::mat4(1.0f);
+	//modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotación en X
+	//modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0f)); // Rotación en Y
 
+	// Multiplicación de las matrices: proyección * vista * modelo
 	//glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
 
+	// Aplicar la matriz MVP en OpenGL
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(glm::value_ptr(projectionMatrix));
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(glm::value_ptr(viewMatrix * modelMatrix));
+	glLoadMatrixf(glm::value_ptr(viewMatrix ));
 
 	drawModel(dato);
 }
 
-
-
-static bool processEvents() {
+static bool processEvents() //funcion que gestion de eventos(mouse)
+{
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) {
 		ImGui_ImplSDL2_ProcessEvent(&event);
 		switch (event.type) {
 		case SDL_QUIT:
 			return false;
-		case SDL_MOUSEBUTTONDOWN:
-			if (event.button.button == SDL_BUTTON_RIGHT) {
+		case SDL_MOUSEBUTTONDOWN: //cuando se presiona el boton del mouse
+			if (event.button.button == SDL_BUTTON_RIGHT) {//boton derecho
 				isDragging = true;
 				SDL_GetMouseState(&lastMouseX, &lastMouseY);
 			}
-			if (event.button.button == SDL_BUTTON_LEFT && (SDL_GetModState() & KMOD_ALT))
+			if (event.button.button == SDL_BUTTON_LEFT && (SDL_GetModState() & KMOD_ALT)) // boton izquierdo + alt
 			{
-				isDragging = true;
 				isScrolling = true;
 				SDL_GetMouseState(&lastMouseX, &lastMouseY);
 			}
 			break;
-		case SDL_MOUSEBUTTONUP:
-			if (event.button.button == SDL_BUTTON_RIGHT || event.button.button == SDL_BUTTON_LEFT) {
+		case SDL_MOUSEBUTTONUP: //cuando se suelta el boton del mouse
+			if (event.button.button == SDL_BUTTON_RIGHT && isDragging) {
 				isDragging = false;
+			}
+			if ( event.button.button == SDL_BUTTON_LEFT && isScrolling)
+			{
 				isScrolling = false;
 			}
 			break;
@@ -310,22 +331,18 @@ static bool processEvents() {
 			zoomLevel = glm::clamp(zoomLevel, -20.0f, -1.0f);
 			break;
 		case SDL_MOUSEMOTION:
-			if (isDragging) {
+			if (isDragging || isScrolling) {
 				int mouseX, mouseY;
 				SDL_GetMouseState(&mouseX, &mouseY);
 				int deltaX = mouseX - lastMouseX;
 				int deltaY = mouseY - lastMouseY;
-				rotationY += deltaX * 0.5f;
-				rotationX += deltaY * 0.5f;
+
+				if (isDragging) {rotationY += deltaX * 0.5f; rotationX += deltaY * 0.5f;}
+				if (isScrolling) { cameraOffsetY += deltaY * 0.05f; cameraOffsetX += deltaX * 0.05f;}
+
 				lastMouseX = mouseX;
 				lastMouseY = mouseY;
-				if (isScrolling)
-				{
-					deltaY = mouseY - lastMouseY; 
-					lastMouseY = mouseY;
-				}
 			}
-
 			break;
 		}
 	}
@@ -337,7 +354,7 @@ int main(int argc, char** argv) {
 	init_openGL();
 	srand(static_cast<unsigned int>(time(nullptr)));
 
-	dato = CubitoFbx(); // Cargar los vértices solo una vez
+	dato = LoadFBX(); // Cargar los vértices solo una vez
 	while (processEvents()) {
 		const auto t0 = hrclock::now();
 		display_func();
