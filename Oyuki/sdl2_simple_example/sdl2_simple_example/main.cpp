@@ -13,6 +13,7 @@
 #include "imgui_impl_sdl2.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <IL/il.h> 
 
 using namespace std;
 
@@ -36,6 +37,7 @@ static void init_openGL() {
 	if (!GLEW_VERSION_3_0) throw exception("OpenGL 3.0 API is not available.");
 
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
 	/*glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_COLOR_MATERIAL);
@@ -184,7 +186,7 @@ void cleanupMeshData(MeshData& meshData) {
 
 vector<MeshData> LoadFBX()
 {
-	const char* file = "C:/Users/adriarj/Downloads/mono.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/usuari/Downloads/cube.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
 		aiProcess_Triangulate | aiProcess_GenNormals);
 	const float scaleFactor = 0.5f;
@@ -273,7 +275,7 @@ static void display_func() //funcion que se llama en el main, seria como un Upda
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Actualizar la matriz de vista: zoom (eje Z) y desplazamiento en el eje Y (para mover la cámara arriba/abajo)	
-	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(cameraOffsetX * 0.1f, -cameraOffsetY * 0.1f, zoomLevel));
+	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(cameraOffsetX * 0.4f, -cameraOffsetY * 0.4f, zoomLevel));
 	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
 	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0));
 
@@ -369,3 +371,85 @@ int main(int argc, char** argv) {
 
 	return 0;
 }
+
+GLuint textureID;
+
+// Function to generate a checkerboard texture
+void generateCheckerboardTexture() {
+	GLubyte checkerImage[64][64][4];  // 64x64 checkerboard
+	for (int i = 0; i < 64; i++) {
+		for (int j = 0; j < 64; j++) {
+			int c = (((i & 0x8) == 0) ^ ((j & 0x8) == 0)) * 255;
+			checkerImage[i][j][0] = (GLubyte)c;
+			checkerImage[i][j][1] = (GLubyte)c;
+			checkerImage[i][j][2] = (GLubyte)c;
+			checkerImage[i][j][3] = (GLubyte)255;  // Alpha channel
+		}
+	}
+
+	// Generate and bind texture
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+	// Set texture parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	// Load texture into OpenGL
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, checkerImage);
+}
+
+// Function to load texture using DevIL (for external file loading)
+void loadTexture(const wchar_t* filename) {
+	ILuint imageID;
+	ilGenImages(1, &imageID);  // Generate image ID
+	ilBindImage(imageID);      // Bind current image
+	if (ilLoadImage(filename)) {
+		ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);  // Convert image to RGBA
+		glGenTextures(1, &textureID);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT),
+			0, GL_RGBA, GL_UNSIGNED_BYTE, ilGetData());
+	}
+	ilDeleteImages(1, &imageID);  // Delete image from memory
+}
+
+// UV coordinates for the cube
+GLfloat cubeUVs[] = {
+	// Front face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f,
+	// Back face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f,
+	// Top face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f,
+	// Bottom face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f,
+	// Right face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f,
+	// Left face
+	0.0f, 0.0f,
+	1.0f, 0.0f,
+	1.0f, 1.0f,
+	0.0f, 1.0f
+};
