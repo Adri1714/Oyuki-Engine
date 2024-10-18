@@ -185,10 +185,10 @@ void cleanupMeshData(MeshData& meshData) {
 
 vector<MeshData> LoadFBX()
 {
-	const char* file = "C:/Users/usuari/Downloads/masterchief.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
 		aiProcess_Triangulate | aiProcess_GenNormals);
-	const float scaleFactor = 0.1f;
+	const float scaleFactor = 0.07f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
@@ -262,8 +262,11 @@ void drawGrid(float size = 10.0f, int divisions = 10) {
 vector<MeshData> dato;
 float rotationX = 0.0f;  // Rotación alrededor del eje X
 float rotationY = 0.0f;  // Rotación alrededor del eje Y
+float objX = 0.0f;
+float objY = 0.0f;
 bool isDragging = false;  // Indica si el mouse está siendo arrastrado
 bool isScrolling = false;
+bool moveObject = false;
 int lastMouseX, lastMouseY; // Última posición del mouse
 float zoomLevel = -5.0f;
 float cameraOffsetY;
@@ -277,6 +280,8 @@ static void display_func() //funcion que se llama en el main, seria como un Upda
 	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(cameraOffsetX * 0.4f, -cameraOffsetY * 0.4f, zoomLevel));
 	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
 	viewMatrix = glm::rotate(viewMatrix, glm::radians(rotationY), glm::vec3(0.0f, 1.0f, 0.0));
+
+	modelMatrix = glm::mat4(1.0f);	
 
 	drawGrid();
 	// Crear la matriz de modelo: rotación del objeto en los ejes X e Y
@@ -310,10 +315,18 @@ static bool processEvents() //funcion que gestion de eventos(mouse)
 				isDragging = true;
 				SDL_GetMouseState(&lastMouseX, &lastMouseY);
 			}
-			if (event.button.button == SDL_BUTTON_LEFT && (SDL_GetModState() & KMOD_ALT)) // boton izquierdo + alt
+			if (event.button.button == SDL_BUTTON_LEFT) // boton izquierdo + alt
 			{
-				isScrolling = true;
-				SDL_GetMouseState(&lastMouseX, &lastMouseY);
+				if (SDL_GetModState() & KMOD_ALT)
+				{
+					isScrolling = true;
+					SDL_GetMouseState(&lastMouseX, &lastMouseY);
+				}
+				else
+				{
+					moveObject = true;
+					SDL_GetMouseState(&lastMouseX, &lastMouseY);
+				}
 			}
 			break;
 		case SDL_MOUSEBUTTONUP: //cuando se suelta el boton del mouse
@@ -323,6 +336,7 @@ static bool processEvents() //funcion que gestion de eventos(mouse)
 			if ( event.button.button == SDL_BUTTON_LEFT && isScrolling)
 			{
 				isScrolling = false;
+				moveObject = false;
 			}
 			break;
 		case SDL_MOUSEWHEEL:
@@ -332,7 +346,7 @@ static bool processEvents() //funcion que gestion de eventos(mouse)
 			zoomLevel = glm::clamp(zoomLevel, -20.0f, -1.0f);
 			break;
 		case SDL_MOUSEMOTION:
-			if (isDragging || isScrolling) {
+			if (isDragging || isScrolling || moveObject) {
 				int mouseX, mouseY;
 				SDL_GetMouseState(&mouseX, &mouseY);
 				int deltaX = mouseX - lastMouseX;
