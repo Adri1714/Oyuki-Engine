@@ -13,6 +13,7 @@
 #include "imgui_impl_sdl2.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <IL/il.h>
 
 using namespace std;
 
@@ -37,6 +38,7 @@ static void init_openGL() {
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
+	ilInit();
 	/*glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_COLOR_MATERIAL);
@@ -185,10 +187,10 @@ void cleanupMeshData(MeshData& meshData) {
 
 vector<MeshData> LoadFBX()
 {
-	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/adriarj/Downloads/bola.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
 		aiProcess_Triangulate | aiProcess_GenNormals);
-	const float scaleFactor = 0.07f;
+	const float scaleFactor = 0.5f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
@@ -271,6 +273,8 @@ int lastMouseX, lastMouseY; // Última posición del mouse
 float zoomLevel = -5.0f;
 float cameraOffsetY;
 float cameraOffsetX;
+
+
 
 static void display_func() //funcion que se llama en el main, seria como un Update
 {
