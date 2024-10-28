@@ -82,10 +82,12 @@ struct MeshData // Estructura para almacenar los datos de un modelo 3D
 	vector<vector<unsigned int>> triangles;
 	vector<vec3> colors;
 	vector<vec3> normals; 
+	vector<vec3> texCoords;
 	GLuint vao = 0;
 	GLuint vbo = 0;
 	GLuint ebo = 0;
 	GLuint normalVBO = 0;
+	GLuint textureVBO = 0;
 	GLuint colorVBO = 0;
 };
 
@@ -96,50 +98,24 @@ static void drawModel(const vector<MeshData>& data) {
 
 		// Asegúrate de que el color se cargue desde el VBO de colores
 		glBindBuffer(GL_ARRAY_BUFFER, meshData.colorVBO);
-		glEnableVertexAttribArray(1); // Activar el atributo de color
+		glBindBuffer(GL_ARRAY_BUFFER, meshData.textureVBO);
+		glEnableVertexAttribArray(2); // Activar el atributo de color
 
 		size_t offset = 0;
 		for (size_t i = 0; i < meshData.triangles.size(); i++) {
 			const auto& triangle = meshData.triangles[i];
-			if (i % 6 == 0) glColor3f(0.6f, 0.6f, 0.6f); // Rojo
-			else if (i % 6 == 1) glColor3f(0.3f, 0.3f, 0.3f); // Verde
-			else if (i % 6 == 2) glColor3f(0.5f, 0.5f, 0.5f); // Azul
-			else if (i % 6 == 3) glColor3f(0.1f, 0.1f, 0.1f); // Amarillo
-			else if (i % 6 == 4) glColor3f(0.4f, 0.4f, 0.4f); // Magenta
-			else if (i % 6 == 5) glColor3f(0.2f, 0.2f, 0.2f); // Cian
+			//if (i % 6 == 0) glColor3f(0.6f, 0.6f, 0.6f); // Rojo
+			//else if (i % 6 == 1) glColor3f(0.3f, 0.3f, 0.3f); // Verde
+			//else if (i % 6 == 2) glColor3f(0.5f, 0.5f, 0.5f); // Azul
+			//else if (i % 6 == 3) glColor3f(0.1f, 0.1f, 0.1f); // Amarillo
+			//else if (i % 6 == 4) glColor3f(0.4f, 0.4f, 0.4f); // Magenta
+			//else if (i % 6 == 5) glColor3f(0.2f, 0.2f, 0.2f); // Cian
 			glDrawElements(GL_TRIANGLES, triangle.size(), GL_UNSIGNED_INT,
 				(void*)(offset * sizeof(unsigned int)));
 			offset += triangle.size();
 		}
 		glBindVertexArray(0);
 	}
-	/*for (size_t a = 0; a < data.size(); a++)
-	{
-		//glPushMatrix();
-		//glTranslatef(a * 1.5f, 0.0f, 0.0f);
-		for (size_t i = 0; i < data[a].triangles.size(); i++) {
-			// Establecer color para cada triángulo
-			if (i % 6 == 0) glColor3f(1.0f, 0.0f, 0.0f); // Rojo
-			else if (i % 6 == 1) glColor3f(0.0f, 1.0f, 0.0f); // Verde
-			else if (i % 6 == 2) glColor3f(0.0f, 0.0f, 1.0f); // Azul
-			else if (i % 6 == 3) glColor3f(1.0f, 1.0f, 0.0f); // Amarillo
-			else if (i % 6 == 4) glColor3f(1.0f, 0.0f, 1.0f); // Magenta
-			else if (i % 6 == 5) glColor3f(0.0f, 1.0f, 1.0f); // Cian
-
-			glVertex3f(data[a].vertices[data[a].triangles[i][0]].x,
-				data[a].vertices[data[a].triangles[i][0]].y,
-				data[a].vertices[data[a].triangles[i][0]].z);
-			glVertex3f(data[a].vertices[data[a].triangles[i][1]].x,
-				data[a].vertices[data[a].triangles[i][1]].y,
-				data[a].vertices[data[a].triangles[i][1]].z);
-			glVertex3f(data[a].vertices[data[a].triangles[i][2]].x,
-				data[a].vertices[data[a].triangles[i][2]].y,
-				data[a].vertices[data[a].triangles[i][2]].z);
-
-		}
-		//glPopMatrix();
-	}
-	*/
 }
 
 void LoadToBuffers(MeshData& meshData) 
@@ -148,6 +124,7 @@ void LoadToBuffers(MeshData& meshData)
 	glGenBuffers(1, &meshData.vbo);
 	glGenBuffers(1, &meshData.ebo);
 	glGenBuffers(1, &meshData.normalVBO);
+	glGenBuffers(1, &meshData.textureVBO);
 
 	glBindVertexArray(meshData.vao);
 
@@ -166,6 +143,15 @@ void LoadToBuffers(MeshData& meshData)
 		glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, sizeof(vec3), (void*)0);
 	}
 
+	//Texturas
+	if (!meshData.texCoords.empty()) {
+		glGenBuffers(1, &meshData.textureVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, meshData.textureVBO);
+		glBufferData(GL_ARRAY_BUFFER, meshData.texCoords.size() * sizeof(vec3), meshData.texCoords.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(2); // Atributo 2 para texturas
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_TRUE, sizeof(vec3), (void*)0); // Cambié a GL_FLOAT y 2 componentes
+	}
+
 	// Cargar índices
 	vector<unsigned int> allIndices;
 	for (const auto& triangle : meshData.triangles) {
@@ -175,6 +161,7 @@ void LoadToBuffers(MeshData& meshData)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, meshData.triangles.size() * sizeof(unsigned int) * 3,
 		allIndices.data(), GL_STATIC_DRAW);
 
+
 	glBindVertexArray(0);
 }
 
@@ -182,15 +169,16 @@ void cleanupMeshData(MeshData& meshData) {
 	glDeleteBuffers(1, &meshData.vbo);
 	glDeleteBuffers(1, &meshData.ebo);
 	glDeleteBuffers(1, &meshData.colorVBO);  // Nuevo: eliminar VBO de colores
+	glDeleteBuffers(1, &meshData.textureVBO);
 	glDeleteVertexArrays(1, &meshData.vao);
 }
 
 vector<MeshData> LoadFBX()
 {
-	const char* file = "C:/Users/adriarj/Downloads/bola.fbx"; // Ruta del fitxer a carregar
+	const char* file = "C:/Users/adriarj/Downloads/putin.fbx"; // Ruta del fitxer a carregar
 	const struct aiScene* scene = aiImportFile(file,
 		aiProcess_Triangulate | aiProcess_GenNormals);
-	const float scaleFactor = 0.5f;
+	const float scaleFactor = 1.0f;
 	if (!scene) {
 		fprintf(stderr, "Error en carregar el fitxer: %s\n", aiGetErrorString());
 		return {};
@@ -214,7 +202,13 @@ vector<MeshData> LoadFBX()
 				aiVector3D normal = mesh->mNormals[v];
 				meshData.normals.push_back(vec3(normal.x, normal.y, normal.z));
 			}
+			// Coordenadas de textura (si están disponibles)
+			if (mesh->HasTextureCoords(0)) {
+				aiVector3D texCoord = mesh->mTextureCoords[0][v];
+				meshData.texCoords.push_back(vec3(texCoord.x, texCoord.y, 0));
+			}
 		}
+
 		// Índexs de triangles (3 per triangle)
 		for (unsigned int f = 0; f < mesh->mNumFaces; f++) 
 		{
@@ -238,6 +232,36 @@ vector<MeshData> LoadFBX()
 	return MayaTotal;
 
 }
+void LoadText()
+{
+	const char* Path = "C:/Users/adriarj/Downloads/putinText.png";
+	ILuint imageID;
+	ilGenImages(1, &imageID);
+	ilBindImage(imageID);
+
+	if (!ilLoadImage((const wchar_t*)Path)) {  // Cargamos la imagen usando la ruta
+		ilDeleteImages(1, &imageID);
+		return; // Si falla, terminamos aquí
+	}
+
+	ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
+	int width = ilGetInteger(IL_IMAGE_WIDTH);
+	int height = ilGetInteger(IL_IMAGE_HEIGHT);
+	unsigned char* imageData = ilGetData();
+	GLuint textureID;
+
+	//ilLoadImage((const wchar_t* )textureID);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+	ilDeleteImages(1, &imageID);
+}
+
 void drawGrid(float size = 10.0f, int divisions = 10) {
 	float step = size / divisions;
 	float half = size / 2.0f;
@@ -287,7 +311,7 @@ static void display_func() //funcion que se llama en el main, seria como un Upda
 
 	modelMatrix = glm::mat4(1.0f);	
 
-	drawGrid();
+	//drawGrid();
 	// Crear la matriz de modelo: rotación del objeto en los ejes X e Y
 	//modelMatrix = glm::mat4(1.0f);
 	//modelMatrix = glm::rotate(modelMatrix, glm::radians(rotationX), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotación en X
@@ -301,7 +325,7 @@ static void display_func() //funcion que se llama en el main, seria como un Upda
 	glLoadMatrixf(glm::value_ptr(projectionMatrix));
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(glm::value_ptr(viewMatrix ));
+	glLoadMatrixf(glm::value_ptr(viewMatrix));
 
 	drawModel(dato);
 }
@@ -374,6 +398,7 @@ int main(int argc, char** argv) {
 	srand(static_cast<unsigned int>(time(nullptr)));
 
 	dato = LoadFBX(); // Cargar los vértices solo una vez
+	LoadText();
 	while (processEvents()) {
 		const auto t0 = hrclock::now();
 		display_func();
